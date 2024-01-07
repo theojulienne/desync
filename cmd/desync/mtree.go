@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"runtime"
 
 	"github.com/folbricht/desync"
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ type mtreeOptions struct {
 	stores    []string
 	cache     string
 	readIndex bool
+	desync.LocalFSOptions
 }
 
 func newMtreeCommand(ctx context.Context) *cobra.Command {
@@ -42,6 +44,12 @@ a local directory.
 	flags.StringSliceVarP(&opt.stores, "store", "s", nil, "source store(s), used with -i")
 	flags.StringVarP(&opt.cache, "cache", "c", "", "store to be used as cache")
 	flags.BoolVarP(&opt.readIndex, "index", "i", false, "read index file (caidx), not catar")
+	flags.BoolVarP(&opt.NoTime, "no-time", "", false, "set file timestamps to zero in the archive")
+
+	if runtime.GOOS != "windows" {
+		flags.BoolVarP(&opt.OneFileSystem, "one-file-system", "x", false, "don't cross filesystem boundaries")
+	}
+
 	addStoreOptions(&opt.cmdStoreOptions, flags)
 	return cmd
 }
@@ -73,7 +81,7 @@ func runMtree(ctx context.Context, opt mtreeOptions, args []string) error {
 	// which then writes into an mtree writer.
 	if stat.IsDir() {
 		r, w := io.Pipe()
-		inFS := desync.NewLocalFS(input, desync.LocalFSOptions{})
+		inFS := desync.NewLocalFS(input, opt.LocalFSOptions)
 
 		// Run the tar bit in a goroutine, writing to the pipe
 		var tarErr error
