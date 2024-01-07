@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package desync
@@ -247,7 +248,8 @@ func (fs *LocalFS) startSerializer() {
 				// one-file-system is set, skip other filesystems
 				st, ok := info.Sys().(*syscall.Stat_t)
 				if ok && uint64(st.Dev) != fs.dev {
-					return nil
+					// this directory is another filesystem, so skip the whole sub-tree
+					return filepath.SkipDir
 				}
 			}
 			fs.entries <- walkEntry{path, info, err}
